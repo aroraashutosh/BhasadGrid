@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BhasadGrid 🔥</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Firebase SDKs -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+
+  <style>
+    @keyframes pulseBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    body {
+      background: linear-gradient(270deg, #0f0f0f, #121212, #1f1f1f);
+      background-size: 600% 600%;
+      animation: pulseBG 15s ease infinite;
+      color: white;
+      font-family: sans-serif;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 10px;
+      text-shadow: 0 0 15px #ff00ff;
+    }
+
+    .card {
+      backdrop-filter: blur(4px);
+      padding: 12px;
+      margin: 8px;
+      border-radius: 10px;
+      transition: transform 0.2s;
+      cursor: default;
+    }
+
+    .card:hover { transform: scale(1.05); }
+    .grid { display: flex; flex-wrap: wrap; }
+    .summary-bar { margin: 10px 0; font-weight: bold; }
+
+    #incident-panel div {
+      margin: 6px;
+      padding: 10px;
+      border-radius: 6px;
+    }
+
+    @keyframes blink {
+      0%, 100% { background-color: #ff000044; }
+      50% { background-color: #ff000088; }
+    }
+
+    .tooltip { position: relative; }
+    .tooltip::after {
+      content: attr(data-tip);
+      position: absolute;
+      bottom: -28px;
+      left: 0;
+      background: #333;
+      color: #fff;
+      font-size: 12px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .tooltip:hover::after { opacity: 1; }
+  </style>
+</head>
+
+<body>
+  <h1>🎧 BhasadGrid: DJ Mode Activated 🔊</h1>
+  <div id="summary" class="summary-bar">Loading summary...</div>
+  <div id="zone-container" class="grid"></div>
+  <div id="incident-panel"></div>
+  <div id="last-updated" class="summary-bar"></div>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBEYSERE4QKtj2_nsOY1Ew_Puf3zFWn2F4",
+      authDomain: "bhasadgrid.firebaseapp.com",
+      projectId: "bhasadgrid",
+      storageBucket: "bhasadgrid.appspot.com",
+      messagingSenderId: "624732981518",
+      appId: "1:624732981518:web:ff27d6f890181157fcaf5f",
+      measurementId: "G-BP3L0JLTDV"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    db.collection("zones").onSnapshot((snapshot) => {
+      const container = document.getElementById("zone-container");
+      const incidentPanel = document.getElementById("incident-panel");
+      const summary = document.getElementById("summary");
+      const timestampBar = document.getElementById("last-updated");
+
+      container.innerHTML = "";
+      incidentPanel.innerHTML = "";
+
+      let high = 0, medium = 0, low = 0;
+
+      console.log("Snapshot received:", snapshot.size);
+
+      if (snapshot.empty) {
+        console.warn("⚠️ Firestore is connected, but no zone documents found.");
+        container.innerHTML = `<div class="card"><strong>🧱 No zones found</strong><br>Add zone documents in Firestore to get started.</div>`;
+        summary.textContent = `⚡ Chaos: 0 | 😐 Steady: 0 | 😌 Chill: 0`;
+        return;
+      }
+
+      snapshot.forEach((doc) => {
+        const data = doc.data();
+        console.log("Fetched zone:", data);
+
+        const card = document.createElement("div");
+        card.className = "card tooltip";
+
+        const bgColor = {
+          high: "#ff4d4d",
+          medium: "#ffc107",
+          low: "#4caf50"
+        }[data.status] || "#777";
+
+        card.style.backgroundColor = bgColor;
+        card.style.boxShadow = `0 0 ${data.velocity * 8}px ${bgColor}`;
+        card.style.border = {
+          high: "2px solid red",
+          medium: "2px dashed yellow",
+          low: "2px dotted green"
+        }[data.status] || "1px solid #666";
+
+        const emojiMap = {
+          "DJ Booth": "🎧", "Crowd Zone": "🕺", "Mic Zone": "🎤",
+          "Chill Lounge": "😎", "Entry Gate": "🚪", "Control Room": "🎛️",
+          "Bass Pit": "🎚️", "VIP Zone": "👑", "Backstage": "🎬",
+          "Dance Floor": "🪩", "Sound Desk": "🔊", "Parking Zone": "🚗",
+          "Energy Zone": "⚡", "Nirvana Zone": "🕉️"
+        };
+
+        const emoji = emojiMap[data.name] || "🧱";
+        const tip = `Density: ${data.density}, Velocity: ${data.velocity}`;
+        card.setAttribute("data-tip", tip);
+        card.innerHTML = `<strong>${emoji} ${data.name}</strong><br>Status: ${data.status}`;
+        container.appendChild(card);
+
+        if (data.status === "high") {
+          high++;
+          const alert = document.createElement("div");
+          alert.style.animation = "blink 1s infinite";
+          alert.style.backgroundColor = "#ff0000";
+          alert.textContent = `🚨 HIGH ALERT: ${emoji} ${data.name}`;
+          incidentPanel.appendChild(alert);
+        } else if (data.status === "medium") {
+          medium++;
+        } else if (data.status === "low") {
+          low++;
+        }
+      });
+
+      summary.textContent = `⚡ Chaos: ${high} | 😐 Steady: ${medium} | 😌 Chill: ${low}`;
+      const now = new Date();
+      timestampBar.textContent = `🕓 Last updated: ${now.toLocaleString()}`;
+    }, (error) => {
+      console.error("❌ Firestore listener failed:", error.message);
+    });
+  </script>
+</body>
+</html>
